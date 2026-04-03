@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LinguaFlow — NLP Translator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1d28;
+    --surface: #1e2130;
+    --surface2: #252840;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #eef0f8;
+    --muted: #8890aa;
+    --accent: #6c7fff;
+    --accent2: #a78bfa;
+    --accent3: #34d399;
+    --accent4: #fb923c;
+    --red: #f87171;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,127,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,127,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb { position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0; opacity: 0.35; }
+  .orb1 { width: 500px; height: 500px; background: radial-gradient(circle, #6c7fff, transparent 70%); top: -150px; left: -100px; animation: drift1 18s ease-in-out infinite; }
+  .orb2 { width: 400px; height: 400px; background: radial-gradient(circle, #a78bfa, transparent 70%); bottom: -100px; right: -80px; animation: drift2 22s ease-in-out infinite; }
+  .orb3 { width: 300px; height: 300px; background: radial-gradient(circle, #34d399, transparent 70%); top: 40%; left: 60%; animation: drift3 15s ease-in-out infinite; opacity: 0.15; }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,30px)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,-40px)} }
+  @keyframes drift3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-30px)} }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 32px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .logo span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 4px; font-family: 'DM Mono', monospace; letter-spacing: 0.5px; }
+  .badge { background: var(--surface); border: 1px solid var(--border2); border-radius: 100px; padding: 6px 14px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.5px; }
+  .badge b { color: var(--accent3); font-weight: 500; }
+
+  .hero { margin-bottom: 56px; }
+  .hero-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(36px, 6vw, 68px); line-height: 1.05; letter-spacing: -2px; margin-bottom: 20px; }
+  .hero-title .hi { color: var(--accent); }
+  .hero-title .lo { color: var(--accent2); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 480px; line-height: 1.7; }
+  .nlp-steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 28px 0 0; }
+  .step-pill { background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+  .step-pill .num { width: 16px; height: 16px; background: var(--surface2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--accent); }
+  .step-pill.active { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+
+  .translator-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: 20px; overflow: hidden; margin-bottom: 32px; }
+
+  .lang-row { display: grid; grid-template-columns: 1fr 60px 1fr; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg3); }
+  .lang-picker { padding: 18px 24px; display: flex; align-items: center; gap: 12px; }
+  .lang-info { flex: 1; }
+  .lang-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .lang-select { background: none; border: none; color: var(--text); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 17px; cursor: pointer; outline: none; width: 100%; appearance: none; -webkit-appearance: none; }
+  .lang-select option { background: #1a1d28; color: var(--text); }
+
+  .swap-btn { width: 60px; display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--bg3); cursor: pointer; transition: all 0.2s; height: 100%; min-height: 72px; }
+  .swap-btn:hover { background: var(--surface); }
+  .swap-btn svg { transition: transform 0.4s; }
+  .swap-btn:hover svg { transform: rotate(180deg); }
+
+  .text-pane { display: grid; grid-template-columns: 1fr 1px 1fr; min-height: 220px; }
+  .divider-v { background: var(--border); }
+  .pane { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .pane-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
+  textarea { background: none; border: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 300; line-height: 1.7; resize: none; outline: none; flex: 1; min-height: 140px; }
+  textarea::placeholder { color: #3d4259; }
+  .char-count { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; align-self: flex-end; }
+  .char-count.warn { color: var(--accent4); }
+  .output-text { font-size: 16px; font-weight: 300; line-height: 1.7; color: var(--text); min-height: 140px; flex: 1; white-space: pre-wrap; word-break: break-word; }
+  .output-placeholder { color: #3d4259; font-style: italic; }
+
+  .action-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg3); gap: 12px; flex-wrap: wrap; }
+  .action-left { display: flex; align-items: center; gap: 8px; }
+  .icon-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; color: var(--muted); font-size: 14px; }
+  .icon-btn:hover { background: var(--surface2); border-color: var(--border2); color: var(--text); }
+  .icon-btn.copied { border-color: var(--accent3); color: var(--accent3); }
+
+  .translate-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; padding: 10px 28px; color: white; font-family: 'Syne', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.3px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; position: relative; overflow: hidden; }
+  .translate-btn:hover { opacity: 0.9; }
+  .translate-btn:active { transform: scale(0.97); }
+  .translate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .translate-btn .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+  .translate-btn.loading .spinner { display: block; }
+  .translate-btn.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-bar { height: 3px; background: var(--border); border-radius: 0 0 20px 20px; overflow: hidden; }
+  .status-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+
+  /* ── detect row ── */
+  .detect-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .detect-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); }
+  .detect-dot.mismatch { background: var(--accent4); }
+
+  /* ── report ── */
+  .report-section { margin-top: 32px; }
+  .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .section-title::before { content: ''; width: 3px; height: 14px; background: linear-gradient(to bottom, var(--accent), var(--accent2)); border-radius: 3px; }
+
+  .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .report-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: border-color 0.2s; opacity: 0; transform: translateY(12px); }
+  .report-card.visible { animation: fadeUp 0.35s ease forwards; }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .report-card:hover { border-color: var(--border2); }
+
+  .report-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .step-badge { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; flex-shrink: 0; }
+  .step-badge.s1 { background: rgba(108,127,255,0.15); color: var(--accent); }
+  .step-badge.s2 { background: rgba(167,139,250,0.15); color: var(--accent2); }
+  .step-badge.s3 { background: rgba(52,211,153,0.15); color: var(--accent3); }
+  .step-badge.s4 { background: rgba(251,146,60,0.15); color: var(--accent4); }
+  .step-badge.s5 { background: rgba(248,113,113,0.15); color: var(--red); }
+  .step-badge.s6 { background: rgba(129,140,248,0.15); color: #818cf8; }
+  .rc-title { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; color: var(--text); }
+  .rc-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .tag .tag-pos { color: var(--accent2); font-size: 10px; }
+  .tag.stopword { text-decoration: line-through; opacity: 0.5; }
+  .tag.entity { border-color: rgba(52,211,153,0.3); color: var(--accent3); }
+  .tag.entity .entity-type { font-size: 9px; background: rgba(52,211,153,0.12); border-radius: 3px; padding: 1px 4px; }
+
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .info-row + .info-row { border-top: 1px solid var(--border); }
+  .info-key { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
+  .info-val { font-weight: 500; font-family: 'DM Mono', monospace; font-size: 12px; }
+  .info-val.good { color: var(--accent3); }
+  .info-val.warn { color: var(--accent4); }
+  .info-val.bad { color: var(--red); }
+
+  .error-msg { color: var(--red); font-size: 12px; font-family: 'DM Mono', monospace; display: none; padding: 8px 0; }
+
+  /* ── server status pill ── */
+  .server-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-dot.online { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+  .status-dot.offline { background: var(--red); }
+
+  footer { border-top: 1px solid var(--border); margin-top: 64px; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 640px) {
+    .text-pane { grid-template-columns: 1fr; }
+    .divider-v { height: 1px; width: 100%; }
+    .lang-row { grid-template-columns: 1fr 50px 1fr; }
+    .hero-title { font-size: 36px; letter-spacing: -1px; }
+    .report-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌐</div>
+      LinguaFlow
+      <span>/ NLP</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="server-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusLabel">checking…</span>
+      </div>
+      <div class="badge">NLTK + MyMemory · <b>7 steps</b></div>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1 class="hero-title">
+      <span class="hi">Translate</span> with<br/>
+      <span class="lo">full NLP</span> insight
+    </h1>
+    <p class="hero-sub">Every translation runs through a complete NLP pipeline — detection, tokenization, POS tagging, NER, and more. Powered by real NLTK on the backend.</p>
+    <div class="nlp-steps">
+      <div class="step-pill" id="pill1"><div class="num">1</div>Detect</div>
+      <div class="step-pill" id="pill2"><div class="num">2</div>Normalize</div>
+      <div class="step-pill" id="pill3"><div class="num">3</div>Tokenize</div>
+      <div class="step-pill" id="pill4"><div class="num">4</div>Stopwords</div>
+      <div class="step-pill" id="pill5"><div class="num">5</div>POS Tag</div>
+      <div class="step-pill" id="pill6"><div class="num">6</div>NER</div>
+      <div class="step-pill" id="pill7"><div class="num">7</div>Translate</div>
+    </div>
+  </div>
+
+  <div class="translator-card">
+    <div class="lang-row">
+      <div class="lang-picker">
+        <div class="lang-info">
+          <div class="lang-label">Source language</div>
+          <select class="lang-select" id="srcLang">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="es">Spanish</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ru">Russian</option>
+            <option value="zh">Chinese (Simplified)</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="ar">Arabic</option>
+            <option value="tr">Turkish</option>
+            <option value="bn">Bengali</option>
+            <option value="mr">Marathi</option>
+            <option value="ta">Tamil</option>
+            <option value="ur">Urdu</option>
+            <option value="nl">Dutch</option>
+            <option value="pl">Polish</option>
+            <option value="el">Greek</option>
+          </select>
+        </div>
+      </div>
+      <div class="swap-btn" onclick="swapLanguages()" title="Swap languages">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#8890aa">
+          <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+        </svg>
+      </div>
+      <div class="lang-picker">
+        <div class="lang-info">
+          <div class="lang-label">Target language</div>
+          <select class="lang-select" id="tgtLang">
+            <option value="en">English</option>
+            <option value="hi" selected>Hindi</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="es">Spanish</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ru">Russian</option>
+            <option value="zh">Chinese (Simplified)</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="ar">Arabic</option>
+            <option value="tr">Turkish</option>
+            <option value="bn">Bengali</option>
+            <option value="mr">Marathi</option>
+            <option value="ta">Tamil</option>
+            <option value="ur">Urdu</option>
+            <option value="nl">Dutch</option>
+            <option value="pl">Polish</option>
+            <option value="el">Greek</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-pane">
+      <div class="pane">
+        <div class="pane-label">Input text</div>
+        <textarea id="inputText" placeholder="Type or paste text here…" maxlength="500" oninput="updateCharCount(this)"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="detect-row" id="detectRow" style="display:none">
+            <div class="detect-dot" id="detectDot"></div>
+            <span id="detectLabel">Detected: —</span>
+          </div>
+          <span></span>
+          <span class="char-count" id="charCount">0 / 500</span>
+        </div>
+      </div>
+      <div class="divider-v"></div>
+      <div class="pane">
+        <div class="pane-label">Translation</div>
+        <div class="output-text" id="outputText"><span class="output-placeholder">Your translation will appear here…</span></div>
+        <div class="error-msg" id="errorMsg">⚠ Translation failed. Make sure the Flask server is running.</div>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <div class="action-left">
+        <button class="icon-btn" onclick="clearAll()" title="Clear">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+        <button class="icon-btn" id="copyBtn" onclick="copyOutput()" title="Copy translation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        </button>
+      </div>
+      <button class="translate-btn" id="translateBtn" onclick="runPipeline()">
+        <span class="btn-text">Translate →</span>
+        <div class="spinner"></div>
+      </button>
+    </div>
+
+    <div class="status-bar"><div class="status-fill" id="statusFill"></div></div>
+  </div>
+
+  <!-- NLP REPORT — populated from real NLTK data -->
+  <div class="report-section" id="reportSection" style="display:none;">
+    <div class="report-header">
+      <div class="section-title">NLP Pipeline Report</div>
+      <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;" id="reportMeta">—</div>
+    </div>
+    <div class="report-grid" id="reportGrid"></div>
+  </div>
+
+  <footer>
+    <span>LinguaFlow · NLTK Pipeline + MyMemory API</span>
+    <span>Run: <code style="background:var(--surface);padding:2px 7px;border-radius:5px;font-size:11px;">python main.py --web</code></span>
+  </footer>
+</div>
+
+<script>
+const POS_MAP = {
+  NN:"Noun", NNS:"Noun (pl.)", NNP:"Proper Noun", NNPS:"Proper Noun (pl.)",
+  VB:"Verb", VBD:"Verb (past)", VBG:"Verb (gerund)", VBN:"Verb (p.part.)",
+  VBP:"Verb (pres.)", VBZ:"Verb (3rd)", JJ:"Adjective", JJR:"Adj. (comp.)",
+  JJS:"Adj. (super.)", RB:"Adverb", RBR:"Adv. (comp.)", RBS:"Adv. (super.)",
+  PRP:"Pronoun", "PRP$":"Poss. Pronoun", DT:"Determiner", IN:"Preposition",
+  CC:"Conjunction", CD:"Number", UH:"Interjection", TO:"to", MD:"Modal",
+  WP:"Wh-pronoun", WDT:"Wh-det.", EX:"Existential", FW:"Foreign word"
+};
+
+// ── Server health check ───────────────────────────────────────────────────
+async function checkServer() {
+  const dot   = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  try {
+    const r = await fetch('/translate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text:'hi', src:'en', tgt:'hi'})
+    });
+    if (r.ok) {
+      dot.className   = 'status-dot online';
+      label.textContent = 'server online';
+    } else { throw new Error(); }
+  } catch {
+    dot.className   = 'status-dot offline';
+    label.textContent = 'server offline';
+  }
+}
+checkServer();
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function updateCharCount(el) {
+  const n = el.value.length;
+  const c = document.getElementById('charCount');
+  c.textContent = n + ' / 500';
+  c.classList.toggle('warn', n > 400);
+}
+
+function swapLanguages() {
+  const src = document.getElementById('srcLang');
+  const tgt = document.getElementById('tgtLang');
+  [src.value, tgt.value] = [tgt.value, src.value];
+  const out = document.getElementById('outputText');
+  const inp = document.getElementById('inputText');
+  if (!out.querySelector('.output-placeholder')) {
+    inp.value = out.innerText;
+    updateCharCount(inp);
+  }
+  out.innerHTML = '<span class="output-placeholder">Your translation will appear here…</span>';
+  document.getElementById('reportSection').style.display = 'none';
+}
+
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('outputText').innerHTML = '<span class="output-placeholder">Your translation will appear here…</span>';
+  document.getElementById('charCount').textContent = '0 / 500';
+  document.getElementById('charCount').classList.remove('warn');
+  document.getElementById('reportSection').style.display = 'none';
+  document.getElementById('detectRow').style.display = 'none';
+  document.getElementById('statusFill').style.width = '0%';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+}
+
+async function copyOutput() {
+  const out = document.getElementById('outputText');
+  if (out.querySelector('.output-placeholder')) return;
+  await navigator.clipboard.writeText(out.innerText.trim()).catch(()=>{});
+  const btn = document.getElementById('copyBtn');
+  btn.classList.add('copied');
+  setTimeout(() => btn.classList.remove('copied'), 1500);
+}
+
+function setProgress(pct) { document.getElementById('statusFill').style.width = pct + '%'; }
+
+function activatePill(n) {
+  document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('pill' + n);
+  if (el) el.classList.add('active');
+}
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Main pipeline — calls Flask /translate ────────────────────────────────
+async function runPipeline() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { document.getElementById('inputText').focus(); return; }
+
+  const src     = document.getElementById('srcLang').value;
+  const tgt     = document.getElementById('tgtLang').value;
+  const btn     = document.getElementById('translateBtn');
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('outputText').innerHTML = '<span class="output-placeholder">Running NLP pipeline…</span>';
+  document.getElementById('reportSection').style.display = 'none';
+
+  // Animate pills while waiting
+  const pillAnim = animatePills();
+
+  setProgress(15);
+  activatePill(1);
+  await delay(200);
+  setProgress(35);
+  activatePill(3);
+  await delay(150);
+  setProgress(55);
+  activatePill(5);
+
+  let data;
+  try {
+    const res = await fetch('/translate', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ text, src, tgt })
+    });
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    data = await res.json();
+  } catch (err) {
+    clearInterval(pillAnim);
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    document.getElementById('outputText').innerHTML = '<span class="output-placeholder">Could not reach server.</span>';
+    document.getElementById('errorMsg').style.display = 'block';
+    document.getElementById('statusDot').className = 'status-dot offline';
+    document.getElementById('statusLabel').textContent = 'server offline';
+    setProgress(0);
+    document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+    return;
+  }
+
+  clearInterval(pillAnim);
+  setProgress(100);
+  activatePill(7);
+  await delay(300);
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  // Show translation
+  if (data.translation) {
+    document.getElementById('outputText').textContent = data.translation;
+  } else {
+    document.getElementById('outputText').innerHTML = '<span class="output-placeholder">Translation unavailable.</span>';
+    document.getElementById('errorMsg').style.display = 'block';
+  }
+
+  // Show detected language
+  const detRow = document.getElementById('detectRow');
+  const detDot = document.getElementById('detectDot');
+  detRow.style.display = 'flex';
+  document.getElementById('detectLabel').textContent = `Detected: ${data.detected_name} (${data.detected_code})`;
+  const mismatch = data.detected_code !== src && data.detected_code !== 'unknown';
+  detDot.className = 'detect-dot' + (mismatch ? ' mismatch' : '');
+
+  setTimeout(() => {
+    setProgress(0);
+    document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+  }, 1800);
+
+  // Build report from REAL NLTK data
+  buildReport(data, src, tgt);
+}
+
+function animatePills() {
+  let i = 1;
+  return setInterval(() => {
+    document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+    document.getElementById('pill' + i)?.classList.add('active');
+    i = i < 7 ? i + 1 : 1;
+  }, 300);
+}
+
+// ── Build NLP report cards from real backend data ─────────────────────────
+function buildReport(d, src, tgt) {
+  const grid = document.getElementById('reportGrid');
+  grid.innerHTML = '';
+
+  const tokenCount    = (d.tokens || []).length;
+  const sentenceCount = (d.sentences || []).length;
+  const entityCount   = (d.entities || []).length;
+
+  document.getElementById('reportMeta').textContent =
+    `${tokenCount} tokens · ${sentenceCount} sentence${sentenceCount !== 1 ? 's' : ''} · ${entityCount} entit${entityCount !== 1 ? 'ies' : 'y'} · real NLTK`;
+  document.getElementById('reportSection').style.display = 'block';
+
+  const mismatch = d.detected_code !== src && d.detected_code !== 'unknown';
+  const cards = [];
+
+  // 1 — Language Detection
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s1">01</div>
+        <div><div class="rc-title">Language Detection</div><div class="rc-sub">langdetect · n-gram statistics</div></div>
+      </div>
+      <div class="info-row"><span class="info-key">detected</span><span class="info-val">${d.detected_name} (${d.detected_code})</span></div>
+      <div class="info-row"><span class="info-key">source selected</span><span class="info-val">${d.src_name} (${src})</span></div>
+      <div class="info-row"><span class="info-key">match</span><span class="info-val ${mismatch ? 'warn' : 'good'}">${mismatch ? '⚠ mismatch' : '✓ matched'}</span></div>
+    </div>
+  `);
+
+  // 2 — Normalization
+  const origLen = (d.tokens || []).join(' ').length;
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s2">02</div>
+        <div><div class="rc-title">Text Normalization</div><div class="rc-sub">regex · whitespace cleanup</div></div>
+      </div>
+      <div class="info-row"><span class="info-key">normalized text</span><span class="info-val good">✓ done</span></div>
+      <div class="info-row"><span class="info-key">normalized length</span><span class="info-val">${(d.normalized || '').length} chars</span></div>
+      <div class="info-row"><span class="info-key">result</span><span class="info-val" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${(d.normalized||'').slice(0,40)}${(d.normalized||'').length>40?'…':''}</span></div>
+    </div>
+  `);
+
+  // 3 — Tokenization
+  const tokens = d.tokens || [];
+  const tokDisplay = tokens.slice(0, 14).map(t => `<span class="tag">${t}</span>`).join('')
+    + (tokens.length > 14 ? `<span class="tag" style="color:var(--accent)">+${tokens.length - 14}</span>` : '');
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s3">03</div>
+        <div><div class="rc-title">Tokenization</div><div class="rc-sub">nltk.word_tokenize · sent_tokenize</div></div>
+      </div>
+      <div class="info-row"><span class="info-key">sentences</span><span class="info-val">${sentenceCount}</span></div>
+      <div class="info-row"><span class="info-key">word tokens</span><span class="info-val">${tokenCount}</span></div>
+      <div class="tag-list">${tokDisplay || '<span style="font-size:11px;color:var(--muted)">none</span>'}</div>
+    </div>
+  `);
+
+  // 4 — Stopwords
+  const removed = d.removed_tokens || [];
+  const filtered = d.filtered_tokens || [];
+  const swDisplay = removed.slice(0, 10).map(t => `<span class="tag stopword">${t}</span>`).join('')
+    + (removed.length > 10 ? `<span class="tag" style="color:var(--muted)">+${removed.length - 10}</span>` : '');
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s4">04</div>
+        <div><div class="rc-title">Stopword Removal</div><div class="rc-sub">nltk.corpus.stopwords · english</div></div>
+      </div>
+      <div class="info-row"><span class="info-key">removed</span><span class="info-val">${removed.length}</span></div>
+      <div class="info-row"><span class="info-key">remaining</span><span class="info-val">${filtered.length}</span></div>
+      <div class="tag-list">${swDisplay || '<span style="font-size:11px;color:var(--muted)">none removed</span>'}</div>
+    </div>
+  `);
+
+  // 5 — POS Tags
+  const posTags = d.pos_tags || [];
+  const posDisplay = posTags.slice(0, 12).map(([w, tag]) =>
+    `<span class="tag">${w} <span class="tag-pos">${tag}</span></span>`
+  ).join('') + (posTags.length > 12 ? `<span class="tag" style="color:var(--accent2)">+${posTags.length - 12}</span>` : '');
+  const posCounts = {};
+  posTags.forEach(([, t]) => {
+    const desc = POS_MAP[t] || t;
+    const cat  = desc.includes('Noun') ? 'nouns'
+               : desc.includes('Verb') ? 'verbs'
+               : desc.includes('Adj')  ? 'adjectives'
+               : desc.includes('Adv')  ? 'adverbs' : 'other';
+    posCounts[cat] = (posCounts[cat] || 0) + 1;
+  });
+  const pcRows = Object.entries(posCounts).slice(0, 3).map(([k, v]) =>
+    `<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
+  ).join('');
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s5">05</div>
+        <div><div class="rc-title">POS Tagging</div><div class="rc-sub">nltk.pos_tag · Penn Treebank</div></div>
+      </div>
+      ${pcRows}
+      <div class="tag-list">${posDisplay || '<span style="font-size:11px;color:var(--muted)">no alpha tokens</span>'}</div>
+    </div>
+  `);
+
+  // 6 — NER
+  const entities = d.entities || [];
+  const nerDisplay = entities.length
+    ? entities.map(e => `<span class="tag entity">${e.name} <span class="entity-type">${e.label}</span></span>`).join('')
+    : '<span style="font-size:11px;color:var(--muted)">No named entities found</span>';
+  cards.push(`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div class="step-badge s6">06</div>
+        <div><div class="rc-title">Named Entity Recognition</div><div class="rc-sub">nltk.ne_chunk · maxent chunker</div></div>
+      </div>
+      <div class="info-row"><span class="info-key">entities found</span><span class="info-val ${entities.length ? 'good' : ''}">${entities.length}</span></div>
+      <div class="info-row"><span class="info-key">types</span><span class="info-val">${[...new Set(entities.map(e => e.label))].join(', ') || '—'}</span></div>
+      <div class="tag-list">${nerDisplay}</div>
+    </div>
+  `);
+
+  grid.innerHTML = cards.join('');
+  setTimeout(() => {
+    grid.querySelectorAll('.report-card').forEach((card, i) => {
+      setTimeout(() => card.classList.add('visible'), i * 80);
+    });
+  }, 50);
+}
+
+// Ctrl/Cmd+Enter shortcut
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runPipeline();
+});
+</script>
+</body>
+</html>
